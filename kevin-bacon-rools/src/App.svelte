@@ -208,7 +208,7 @@ Return a brief summary of who you found.`,
                     errorMessage={uploadError}
                   />
                 </div>
-
+              </div>
             </div>
           </div>
         {/if}
