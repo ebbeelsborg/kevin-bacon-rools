@@ -14,6 +14,13 @@
   let width = $state(800);
   let height = $state(600);
 
+  $effect(() => {
+    if (simulation) {
+      simulation.force("center", d3.forceCenter(width / 2, height / 2));
+      simulation.alpha(0.1).restart();
+    }
+  });
+
   type Node = Person & d3.SimulationNodeDatum & { degree: number };
   type Link = d3.SimulationLinkDatum<Node> & { id: string };
 
@@ -118,7 +125,9 @@
 </script>
 
 <div
-  class="w-full h-[600px] bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-sm relative"
+  bind:clientWidth={width}
+  bind:clientHeight={height}
+  class="w-full h-full bg-white relative overflow-hidden"
 >
   <svg bind:this={canvas} class="w-full h-full"></svg>
 </div>

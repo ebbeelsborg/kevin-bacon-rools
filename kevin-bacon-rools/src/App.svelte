@@ -153,11 +153,9 @@ Return a brief summary.`,
         </div>
       </header>
 
-      <main
-        class="flex-1 overflow-y-auto p-4 md:p-8 space-y-8 custom-scrollbar"
-      >
+      <main class="flex-1 overflow-hidden relative">
         {#if !space}
-          <div class="flex flex-col items-center justify-center h-64 gap-4">
+          <div class="flex flex-col items-center justify-center h-full gap-4">
             <div
               class="w-12 h-12 border-4 border-blue-500/10 border-t-blue-600 rounded-full animate-spin"
             ></div>
@@ -166,35 +164,35 @@ Return a brief summary.`,
             </p>
           </div>
         {:else}
-          <div class="max-w-6xl mx-auto space-y-8">
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-              <div class="lg:col-span-9">
-                <div class="relative group">
-                  <div
-                    class="absolute -inset-0.5 bg-gradient-to-r from-blue-500/20 to-indigo-600/20 rounded-2xl blur-lg transition duration-1000"
-                  ></div>
-                  <GraphCanvas
-                    persons={graphManager.persons.filter((p) => p.name)}
-                    connections={graphManager.connections}
-                  />
-                </div>
-              </div>
+          <div class="w-full h-full relative">
+            <!-- Full Page Graph -->
+            <GraphCanvas
+              persons={graphManager.persons.filter((p) => p.name)}
+              connections={graphManager.connections}
+            />
 
-              <div class="lg:col-span-3 space-y-6">
-                <div
-                  class="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm space-y-4"
-                >
+            <!-- Floating Upload Panel -->
+            <div class="absolute top-6 right-6 w-80 z-50">
+              <div
+                class="bg-white/80 backdrop-blur-xl border border-slate-200 p-5 rounded-2xl shadow-2xl shadow-slate-200/50 space-y-4"
+              >
+                <div class="flex items-center justify-between">
                   <h3
-                    class="text-xs font-black text-slate-400 uppercase tracking-widest"
+                    class="text-[10px] font-black text-slate-400 uppercase tracking-widest"
                   >
                     Build Graph
                   </h3>
-                  <UploadPanel
-                    onUpload={handleUpload}
-                    {isProcessing}
-                    errorMessage={uploadError}
-                  />
+                  {#if isProcessing}
+                    <div
+                      class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"
+                    ></div>
+                  {/if}
                 </div>
+                <UploadPanel
+                  onUpload={handleUpload}
+                  {isProcessing}
+                  errorMessage={uploadError}
+                />
               </div>
             </div>
           </div>
