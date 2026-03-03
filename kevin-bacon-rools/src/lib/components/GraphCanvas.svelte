@@ -65,6 +65,7 @@
   $effect(() => {
     if (!simulation || persons.length === 0) return;
 
+    const oldNodes = new Map(simulation.nodes().map((d) => [d.id, d]));
     const ids = new Set(persons.map((p) => p.id));
     const nodes: Node[] = persons.map((p) => {
       const old = oldNodes.get(p.id);
@@ -123,7 +124,7 @@
       .attr("font-size", "11px")
       .attr("font-weight", "600");
 
-    if (nodes.length !== oldNodes.size) {
+    if (nodes.length !== oldNodes.size || links.length > 0) {
       simulation.alpha(0.3).restart();
     }
   });
