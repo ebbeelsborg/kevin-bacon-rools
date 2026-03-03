@@ -32,13 +32,10 @@
     }
   });
 
-  async function openSpace() {
-    // Try to find a space named exactly APP_NAME
-    const existing = rool.spaces!.find((s: any) => s.name === APP_NAME);
-    space = existing
-      ? await rool.openSpace(existing.id, { conversationId: "main" })
-      : await rool.createSpace(APP_NAME, { conversationId: "main" });
+  const SPACE_ID = "xo6xP8";
 
+  async function openSpace() {
+    space = await rool.openSpace(SPACE_ID, { conversationId: "main" });
     collection = space.collection({});
 
     // Ensure it's shared with editor access for everyone
