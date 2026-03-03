@@ -153,9 +153,9 @@ Return a brief summary.`,
         </div>
       </header>
 
-      <main class="flex-1 overflow-hidden relative">
+      <main class="flex-1 overflow-hidden p-6 flex gap-6">
         {#if !space}
-          <div class="flex flex-col items-center justify-center h-full gap-4">
+          <div class="flex-1 flex flex-col items-center justify-center gap-4">
             <div
               class="w-12 h-12 border-4 border-blue-500/10 border-t-blue-600 rounded-full animate-spin"
             ></div>
@@ -164,41 +164,45 @@ Return a brief summary.`,
             </p>
           </div>
         {:else}
-          <div class="w-full h-full relative p-6">
-            <!-- Graph Area with Border -->
+          <!-- Left: Maximized Graph Area with Border -->
+          <div
+            class="flex-1 border border-slate-200 rounded-3xl overflow-hidden bg-white shadow-sm relative group"
+          >
+            <GraphCanvas
+              persons={graphManager.persons.filter((p) => p.name)}
+              connections={graphManager.connections}
+            />
+          </div>
+
+          <!-- Right: Sidebar for Upload -->
+          <div class="w-80 shrink-0 flex flex-col gap-6 pt-4">
             <div
-              class="w-full h-full border border-slate-200 rounded-3xl overflow-hidden bg-white shadow-sm relative"
+              class="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm space-y-4"
             >
-              <GraphCanvas
-                persons={graphManager.persons.filter((p) => p.name)}
-                connections={graphManager.connections}
+              <div class="flex items-center justify-between">
+                <h3
+                  class="text-[10px] font-black text-slate-400 uppercase tracking-widest"
+                >
+                  Build Graph
+                </h3>
+                {#if isProcessing}
+                  <div
+                    class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"
+                  ></div>
+                {/if}
+              </div>
+              <UploadPanel
+                onUpload={handleUpload}
+                {isProcessing}
+                errorMessage={uploadError}
               />
             </div>
-
-            <!-- Floating Upload Panel -->
-            <div class="absolute top-6 right-6 w-80 z-50">
-              <div
-                class="bg-white/80 backdrop-blur-xl border border-slate-200 p-5 rounded-2xl shadow-2xl shadow-slate-200/50 space-y-4"
-              >
-                <div class="flex items-center justify-between">
-                  <h3
-                    class="text-[10px] font-black text-slate-400 uppercase tracking-widest"
-                  >
-                    Build Graph
-                  </h3>
-                  {#if isProcessing}
-                    <div
-                      class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"
-                    ></div>
-                  {/if}
-                </div>
-                <UploadPanel
-                  onUpload={handleUpload}
-                  {isProcessing}
-                  errorMessage={uploadError}
-                />
-              </div>
-            </div>
+            <p
+              class="px-2 text-[10px] leading-relaxed text-slate-400 font-medium"
+            >
+              Upload a photo to detect people and build connections in the
+              collaborative supergraph.
+            </p>
           </div>
         {/if}
       </main>
