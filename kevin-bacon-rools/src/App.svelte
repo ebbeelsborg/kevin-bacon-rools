@@ -1,36 +1,36 @@
 <script lang="ts">
-  import { createRool, type ReactiveSpace, type ReactiveCollection } from '@rool-dev/svelte';
-  import Splash from './Splash.svelte';
-  import Header from './Header.svelte';
-  import UploadPanel from './lib/components/UploadPanel.svelte';
-  import FaceTagger from './lib/components/FaceTagger.svelte';
-  import GraphCanvas from './lib/components/GraphCanvas.svelte';
-  import Leaderboard from './lib/components/Leaderboard.svelte';
-  import MetricsPanel from './lib/components/MetricsPanel.svelte';
-  import { GraphManager } from './lib/graph';
-  import { ingestPhoto, tagPerson } from './lib/ingestion';
-  import { seedGraph } from './lib/seed';
-  import type { RoolObject, Person } from './lib/types';
+  import {
+    createRool,
+    type ReactiveSpace,
+    type ReactiveCollection,
+  } from "@rool-dev/svelte";
+  import Splash from "./Splash.svelte";
+  import UploadPanel from "./lib/components/UploadPanel.svelte";
+  import GraphCanvas from "./lib/components/GraphCanvas.svelte";
+  import Leaderboard from "./lib/components/Leaderboard.svelte";
+  import MetricsPanel from "./lib/components/MetricsPanel.svelte";
+  import { GraphManager } from "./lib/graph";
+  import { seedGraph } from "./lib/seed";
+  import type { RoolObject } from "./lib/types";
 
-  const APP_NAME = 'Kevin Bacon Rools';
+  const APP_NAME = "Kevin Bacon Rools";
 
   const rool = createRool();
   rool.init();
 
   let space = $state<ReactiveSpace | null>(null);
   let collection = $state<ReactiveCollection | null>(null);
-  let objects = $derived(collection?.objects as RoolObject[] ?? []);
-  
-  let graphManager = $derived(new GraphManager(objects));
-  
-  let isUploading = $state(false);
-  let lastUploadedPhoto = $state<{ uri: string, personIds: string[] } | null>(null);
+  let objects = $derived((collection?.objects as RoolObject[]) ?? []);
 
-  let searchSource = $state<string>('');
-  let searchTarget = $state<string>('');
+  let graphManager = $derived(new GraphManager(objects));
+
+  let isProcessing = $state(false);
+  let uploadError = $state("");
+
+  let searchSource = $state<string>("");
+  let searchTarget = $state<string>("");
   let shortestPath = $state<string[] | null>(null);
 
-  // Open shared space
   $effect(() => {
     if (rool.authenticated && rool.spaces && !space) {
       openSpace();
@@ -38,43 +38,87 @@
   });
 
   async function openSpace() {
-    // Try to find a space named exactly APP_NAME
-    const existing = rool.spaces!.find(s => s.name === APP_NAME);
+    const existing = rool.spaces!.find((s: any) => s.name === APP_NAME);
     space = existing
-      ? await rool.openSpace(existing.id, { conversationId: 'main' })
-      : await rool.createSpace(APP_NAME, { conversationId: 'main' });
-    
+      ? await rool.openSpace(existing.id, { conversationId: "main" })
+      : await rool.createSpace(APP_NAME, { conversationId: "main" });
+
     collection = space.collection({});
-    
-    // Ensure it's shared with editor access for everyone
+
     try {
-      if (space.role === 'owner' || space.role === 'admin') {
-        await space.setLinkAccess('editor');
+      if (space.role === "owner" || space.role === "admin") {
+        await space.setLinkAccess("editor");
       }
     } catch (e) {
-      console.warn('Could not set link access (might not be owner):', e);
+      console.warn("Could not set link access:", e);
     }
 
     seedGraph(space);
   }
 
-  async function handleUpload(fileData: string) {
-    if (!space) return;
-    isUploading = true;
-    try {
-      const { photo, personNodes } = await ingestPhoto(space, fileData);
-      lastUploadedPhoto = { 
-        uri: fileData, 
-        personIds: personNodes.map(p => p.id) 
-      };
-    } finally {
-      isUploading = false;
-    }
-  }
+  const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/jpg"];
 
-  async function handleTag(personId: string, name: string) {
+  async function handleUpload(file: File) {
     if (!space) return;
-    await tagPerson(space, personId, name, objects);
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      uploadError = `Only PNG and JPG files are supported. You dropped a ${file.type || "unknown"} file.`;
+      return;
+    }
+
+    uploadError = "";
+    isProcessing = true;
+
+    try {
+      // 1. Upload image as media to the space
+      const imageUrl = await space.uploadMedia(file);
+
+      // 2. Create Photo node
+      await space.createObject({
+        data: {
+          type: "Photo",
+          file_reference: imageUrl,
+          upload_timestamp: Date.now(),
+        },
+      });
+
+      // 3. Set system instruction for graph-building behavior
+      await space.setSystemInstruction(`You are a graph-building assistant for the "Kevin Bacon Rools" app.
+
+The space contains objects with these types:
+- Person: { type: "Person", name: string, created_at: number }
+- Photo: { type: "Photo", file_reference: string, upload_timestamp: number }
+- APPEARED_IN: { type: "APPEARED_IN", personId: string, photoId: string }
+- KNOWS: { type: "KNOWS", personA: string, personB: string, weight: number, created_at: number, updated_at: number }
+
+Rules:
+1. When asked to identify people in a photo, search the web to find out who they are.
+2. For each person identified, check if a Person object with that name already exists (use findObjects with where: { type: "Person", name: "<name>" }).
+3. If the person exists, reuse their ID. If not, create a new Person object.
+4. Create APPEARED_IN relationships linking each person to the photo.
+5. For every pair of people in the same photo, create a KNOWS relationship if one doesn't already exist, or increment the weight if it does.
+6. Always respond with a brief summary of who you found and what relationships you created.`);
+
+      // 4. Use LLM to identify people in the photo
+      await space.prompt(
+        `Look at this image and identify all the people in it: ${imageUrl}
+
+Search the web to determine who these people are. Then for each person:
+1. Check if a Person with that name already exists in the space
+2. If not, create a new Person object with their name
+3. Create APPEARED_IN relationships to the Photo object that has file_reference "${imageUrl}"
+4. For every pair of people you identify in this photo, create or update a KNOWS relationship between them
+
+Return a brief summary of who you found.`,
+        { ephemeral: false },
+      );
+    } catch (e) {
+      console.error("Upload failed:", e);
+      uploadError =
+        "Something went wrong processing the image. Please try again.";
+    } finally {
+      isProcessing = false;
+    }
   }
 
   function findPath() {
@@ -83,45 +127,66 @@
     shortestPath = result?.path ?? null;
   }
 
-  let topPersons = $derived(graphManager.persons
-    .map(p => ({ ...p, connections: objects.filter(o => o.type === 'KNOWS' && (o.personA === p.id || o.personB === p.id)).length }))
-    .sort((a, b) => b.connections - a.connections)
-    .slice(0, 5)
-  );
-
-  let currentAppearances = $derived(lastUploadedPhoto 
-    ? objects.filter(o => o.type === 'APPEARED_IN' && lastUploadedPhoto!.personIds.includes(o.personId))
-    : []
+  let topPersons = $derived(
+    graphManager.persons
+      .map((p) => ({
+        ...p,
+        connections: objects.filter(
+          (o) =>
+            o.type === "KNOWS" && (o.personA === p.id || o.personB === p.id),
+        ).length,
+      }))
+      .sort((a, b) => b.connections - a.connections)
+      .slice(0, 5),
   );
 </script>
 
-<div class="min-h-dvh bg-gray-950 text-gray-200 font-sans selection:bg-blue-500/30">
+<div
+  class="min-h-dvh bg-gray-950 text-gray-200 font-sans selection:bg-blue-500/30"
+>
   {#if rool.authenticated === undefined}
-    <div class="fixed inset-0 flex items-center justify-center bg-gray-950 z-50">
+    <div
+      class="fixed inset-0 flex items-center justify-center bg-gray-950 z-50"
+    >
       <div class="animate-pulse flex flex-col items-center gap-4">
         <div class="w-16 h-16 rounded-full bg-blue-600/50 blur-xl"></div>
-        <p class="text-blue-400 font-medium tracking-widest uppercase text-xs">Initializing Rool</p>
+        <p class="text-blue-400 font-medium tracking-widest uppercase text-xs">
+          Initializing Rool
+        </p>
       </div>
     </div>
   {:else if rool.authenticated === false}
     <Splash appName={APP_NAME} onLogin={() => rool.login(APP_NAME)} />
   {:else}
     <div class="flex flex-col h-screen overflow-hidden">
-      <header class="h-16 shrink-0 border-b border-gray-800 bg-gray-900/50 backdrop-blur-xl flex items-center justify-between px-8 z-40">
+      <header
+        class="h-16 shrink-0 border-b border-gray-800 bg-gray-900/50 backdrop-blur-xl flex items-center justify-between px-8 z-40"
+      >
         <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
-            <span class="font-black text-white text-xs">KB</span>
-          </div>
-          <h1 class="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
+          <img
+            src="/kevin-bacon.png"
+            alt="Kevin Bacon"
+            class="w-9 h-9 rounded-full object-cover shadow-lg shadow-blue-500/20 ring-2 ring-blue-500/40"
+          />
+          <h1
+            class="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400"
+          >
             Kevin Bacon Rools
           </h1>
         </div>
         <div class="flex items-center gap-4">
-          <div class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-            <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-            <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Live Supergraph</span>
+          <div
+            class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20"
+          >
+            <div
+              class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"
+            ></div>
+            <span
+              class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider"
+              >Live Supergraph</span
+            >
           </div>
-          <button 
+          <button
             onclick={() => rool.logout()}
             class="text-xs font-bold text-gray-500 hover:text-white transition-colors uppercase tracking-widest"
           >
@@ -130,27 +195,33 @@
         </div>
       </header>
 
-      <main class="flex-1 overflow-y-auto p-4 md:p-8 space-y-8 custom-scrollbar">
+      <main
+        class="flex-1 overflow-y-auto p-4 md:p-8 space-y-8 custom-scrollbar"
+      >
         {#if !space}
           <div class="flex flex-col items-center justify-center h-64 gap-4">
-            <div class="w-12 h-12 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
-            <p class="text-gray-500 text-sm italic">Accessing shared Rool space...</p>
+            <div
+              class="w-12 h-12 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"
+            ></div>
+            <p class="text-gray-500 text-sm italic">
+              Accessing shared Rool space...
+            </p>
           </div>
         {:else}
-          <!-- Metrics Section -->
-          <MetricsPanel 
-            density={graphManager.getGraphDensity()} 
+          <MetricsPanel
+            density={graphManager.getGraphDensity()}
             connectionsCount={graphManager.connections.length}
-            personsCount={graphManager.persons.filter(p => p.name).length}
+            personsCount={graphManager.persons.filter((p) => p.name).length}
           />
 
           <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            <!-- Left Column: Graph & Search -->
             <div class="lg:col-span-8 space-y-6">
               <div class="relative group">
-                <div class="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl blur opacity-20 group-hover:opacity-30 transition duration-1000"></div>
-                <GraphCanvas 
-                  persons={graphManager.persons.filter(p => p.name)} 
+                <div
+                  class="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl blur opacity-20 group-hover:opacity-30 transition duration-1000"
+                ></div>
+                <GraphCanvas
+                  persons={graphManager.persons.filter((p) => p.name)}
                   connections={graphManager.connections}
                   {shortestPath}
                   onNodeClick={(id) => {
@@ -160,7 +231,7 @@
                       findPath();
                     } else {
                       searchSource = id;
-                      searchTarget = '';
+                      searchTarget = "";
                       shortestPath = null;
                     }
                   }}
@@ -168,32 +239,44 @@
               </div>
 
               <!-- Path Search UI -->
-              <div class="bg-gray-900 border border-gray-800 p-6 rounded-2xl shadow-xl flex flex-wrap items-center gap-4 group">
+              <div
+                class="bg-gray-900 border border-gray-800 p-6 rounded-2xl shadow-xl flex flex-wrap items-center gap-4 group"
+              >
                 <div class="flex-1 min-w-[200px]">
-                  <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 px-1">Source Person</label>
-                  <select 
+                  <label
+                    for="search-source"
+                    class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 px-1"
+                    >Source Person</label
+                  >
+                  <select
+                    id="search-source"
                     bind:value={searchSource}
                     class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
                   >
                     <option value="">Select a person...</option>
-                    {#each graphManager.persons.filter(p => p.name) as p}
+                    {#each graphManager.persons.filter((p) => p.name) as p}
                       <option value={p.id}>{p.name}</option>
                     {/each}
                   </select>
                 </div>
                 <div class="flex-1 min-w-[200px]">
-                  <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 px-1">Target Person</label>
-                  <select 
+                  <label
+                    for="search-target"
+                    class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 px-1"
+                    >Target Person</label
+                  >
+                  <select
+                    id="search-target"
                     bind:value={searchTarget}
                     class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
                   >
                     <option value="">Select a person...</option>
-                    {#each graphManager.persons.filter(p => p.name) as p}
+                    {#each graphManager.persons.filter((p) => p.name) as p}
                       <option value={p.id}>{p.name}</option>
                     {/each}
                   </select>
                 </div>
-                <button 
+                <button
                   onclick={findPath}
                   disabled={!searchSource || !searchTarget}
                   class="bg-blue-600 hover:bg-blue-500 active:scale-95 disabled:opacity-30 disabled:active:scale-100 text-white font-bold px-8 py-2.5 rounded-xl transition-all shadow-lg shadow-blue-500/20 mt-6"
@@ -201,11 +284,23 @@
                   Find Degrees
                 </button>
                 {#if shortestPath}
-                  <div class="w-full mt-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center justify-between">
+                  <div
+                    class="w-full mt-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center justify-between"
+                  >
                     <p class="text-sm font-medium text-blue-300">
-                      Distance: <span class="text-lg font-black text-white">{shortestPath.length - 1}</span> degrees of separation
+                      Distance: <span class="text-lg font-black text-white"
+                        >{shortestPath.length - 1}</span
+                      > degrees of separation
                     </p>
-                    <button onclick={() => {shortestPath = null; searchSource = ''; searchTarget = '';}} class="text-[10px] font-bold text-blue-400 uppercase tracking-widest hover:text-white transition-colors">Clear</button>
+                    <button
+                      onclick={() => {
+                        shortestPath = null;
+                        searchSource = "";
+                        searchTarget = "";
+                      }}
+                      class="text-[10px] font-bold text-blue-400 uppercase tracking-widest hover:text-white transition-colors"
+                      >Clear</button
+                    >
                   </div>
                 {/if}
               </div>
@@ -214,19 +309,16 @@
             <!-- Right Column: Upload & Leaderboard -->
             <div class="lg:col-span-4 space-y-8">
               <div class="space-y-4">
-                <h3 class="text-xs font-black text-gray-500 uppercase tracking-[0.2em] px-1">Data Ingestion</h3>
-                <UploadPanel onUpload={handleUpload} {isUploading} />
-                
-                {#if lastUploadedPhoto}
-                  <div class="mt-4 animate-in fade-in zoom-in duration-500">
-                    <FaceTagger 
-                      photoUri={lastUploadedPhoto.uri} 
-                      appearances={currentAppearances}
-                      persons={graphManager.persons}
-                      onTag={handleTag}
-                    />
-                  </div>
-                {/if}
+                <h3
+                  class="text-xs font-black text-gray-500 uppercase tracking-[0.2em] px-1"
+                >
+                  Add People
+                </h3>
+                <UploadPanel
+                  onUpload={handleUpload}
+                  {isProcessing}
+                  errorMessage={uploadError}
+                />
               </div>
 
               <Leaderboard {topPersons} />
@@ -243,7 +335,7 @@
     margin: 0;
     overflow: hidden;
   }
-  
+
   .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
   }
@@ -256,17 +348,5 @@
   }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: #374151;
-  }
-
-  @keyframes fade-in {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-  @keyframes slide-up {
-    from { transform: translateY(20px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
-  }
-  .animate-in {
-    animation: fade-in 0.5s ease-out forwards;
   }
 </style>
