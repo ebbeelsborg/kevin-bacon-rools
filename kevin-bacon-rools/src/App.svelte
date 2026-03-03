@@ -209,24 +209,6 @@ Return a brief summary of who you found.`,
                   />
                 </div>
 
-                <div
-                  class="bg-blue-500/5 border border-blue-500/10 p-4 rounded-xl"
-                >
-                  <p
-                    class="text-[10px] text-blue-400 font-bold uppercase tracking-wider mb-2"
-                  >
-                    Live Status
-                  </p>
-                  <div class="flex items-center gap-2">
-                    <div
-                      class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"
-                    ></div>
-                    <span class="text-xs text-gray-400"
-                      >{graphManager.persons.length} People Linked</span
-                    >
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         {/if}

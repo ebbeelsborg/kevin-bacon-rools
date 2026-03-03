@@ -18,16 +18,75 @@
   type Link = d3.SimulationLinkDatum<Node> & { weight: number; id: string };
 
   let simulation: d3.Simulation<Node, Link> | null = null;
+  let nodeGroup: any;
+  let linkGroup: any;
+
+  onMount(() => {
+    const svg = d3.select(canvas);
+    linkGroup = svg.append("g").attr("class", "links");
+    nodeGroup = svg.append("g").attr("class", "nodes");
+
+    const zoom = d3
+      .zoom<SVGSVGElement, unknown>()
+      .scaleExtent([0.1, 4])
+      .on("zoom", (event) => {
+        linkGroup.attr("transform", event.transform);
+        nodeGroup.attr("transform", event.transform);
+      });
+
+    svg.call(zoom);
+
+    simulation = d3
+      .forceSimulation<Node>()
+      .force(
+        "link",
+        d3
+          .forceLink<Node, Link>()
+          .id((d) => (d as any).id)
+          .distance(100),
+      )
+      .force("charge", d3.forceManyBody().strength(-300))
+      .force("center", d3.forceCenter(width / 2, height / 2))
+      .force(
+        "collision",
+        d3.forceCollide().radius((d) => 35 + (d as Node).degree * 2),
+      );
+
+    simulation.on("tick", () => {
+      linkGroup
+        .selectAll("line")
+        .attr("x1", (d: any) => d.source.x)
+        .attr("y1", (d: any) => d.source.y)
+        .attr("x2", (d: any) => d.target.x)
+        .attr("y2", (d: any) => d.target.y);
+
+      nodeGroup
+        .selectAll("g")
+        .attr("transform", (d: any) => `translate(${d.x},${d.y})`);
+    });
+
+    return () => simulation?.stop();
+  });
 
   $effect(() => {
-    if (!canvas || persons.length === 0) return;
+    if (!simulation || persons.length === 0) return;
 
-    const nodes: Node[] = persons.map((p) => ({
-      ...p,
-      degree: connections.filter(
-        (c) => c.personA === p.id || c.personB === p.id,
-      ).length,
-    }));
+    // Maintain existing nodes to preserve positions
+    const oldNodes = new Map(simulation.nodes().map((d) => [d.id, d]));
+
+    const nodes: Node[] = persons.map((p) => {
+      const old = oldNodes.get(p.id);
+      return {
+        ...p,
+        degree: connections.filter(
+          (c) => c.personA === p.id || c.personB === p.id,
+        ).length,
+        x: old?.x,
+        y: old?.y,
+        vx: old?.vx,
+        vy: old?.vy,
+      };
+    });
 
     const links: Link[] = connections.map((c) => ({
       id: c.id,
@@ -36,85 +95,49 @@
       weight: c.weight,
     }));
 
-    const svg = d3.select(canvas);
-    svg.selectAll("*").remove();
+    simulation.nodes(nodes);
+    const linkForce: any = simulation.force("link");
+    linkForce.links(links);
 
-    const g = svg.append("g");
-
-    // Zoom
-    const zoom = d3
-      .zoom<SVGSVGElement, unknown>()
-      .scaleExtent([0.1, 4])
-      .on("zoom", (event) => {
-        g.attr("transform", event.transform);
-      });
-
-    svg.call(zoom);
-
-    simulation = d3
-      .forceSimulation<Node>(nodes)
-      .force(
-        "link",
-        d3
-          .forceLink<Node, Link>(links)
-          .id((d) => (d as any).id)
-          .distance(100),
-      )
-      .force("charge", d3.forceManyBody().strength(-300))
-      .force("center", d3.forceCenter(width / 2, height / 2))
-      .force(
-        "collision",
-        d3.forceCollide().radius((d) => 30 + (d as Node).degree * 2),
-      );
-
-    // Links
-    const link = g
-      .append("g")
+    // Update Links
+    linkGroup
       .selectAll("line")
-      .data(links)
+      .data(links, (d: any) => d.id)
       .join("line")
       .attr("stroke", "#4b5563")
       .attr("stroke-opacity", 0.6)
-      .attr("stroke-width", (d) => 1 + d.weight);
+      .attr("stroke-width", (d: any) => 1 + d.weight);
 
-    // Nodes
-    const node = g
-      .append("g")
+    // Update Nodes
+    const nodeJoin = nodeGroup
       .selectAll("g")
-      .data(nodes)
-      .join("g")
-      .call(drag(simulation));
+      .data(nodes, (d: any) => d.id)
+      .join(
+        (enter: any) => {
+          const g = enter.append("g").call(drag(simulation!));
+          g.append("circle")
+            .attr("r", (d: any) => 15 + d.degree * 2)
+            .attr("fill", "#1f2937")
+            .attr("stroke", "#374151")
+            .attr("stroke-width", 2);
+          g.append("text")
+            .text((d: any) => d.name || "Unknown")
+            .attr("text-anchor", "middle")
+            .attr("dy", (d: any) => 35 + d.degree * 2)
+            .attr("fill", "#9ca3af")
+            .attr("font-size", "11px")
+            .attr("font-weight", "600")
+            .style("pointer-events", "none");
+          return g;
+        },
+        (update: any) => {
+          update.select("circle").attr("r", (d: any) => 15 + d.degree * 2);
+          update.select("text").attr("dy", (d: any) => 35 + d.degree * 2);
+          return update;
+        },
+      );
 
-    node
-      .append("circle")
-      .attr("r", (d) => 15 + d.degree * 2)
-      .attr("fill", "#1f2937")
-      .attr("stroke", "#374151")
-      .attr("stroke-width", 2);
-
-    node
-      .append("text")
-      .text((d) => d.name || "Unknown")
-      .attr("text-anchor", "middle")
-      .attr("dy", (d) => 35 + d.degree * 2)
-      .attr("fill", "#9ca3af")
-      .attr("font-size", "11px")
-      .attr("font-weight", "600")
-      .style("pointer-events", "none");
-
-    simulation.on("tick", () => {
-      link
-        .attr("x1", (d) => (d.source as any).x)
-        .attr("y1", (d) => (d.source as any).y)
-        .attr("x2", (d) => (d.target as any).x)
-        .attr("y2", (d) => (d.target as any).y);
-
-      node.attr("transform", (d) => `translate(${d.x},${d.y})`);
-    });
-
-    return () => {
-      simulation?.stop();
-    };
+    simulation.alpha(0.3).restart();
   });
 
   function drag(sim: d3.Simulation<Node, undefined>) {
@@ -123,18 +146,15 @@
       event.subject.fx = event.subject.x;
       event.subject.fy = event.subject.y;
     }
-
     function dragged(event: any) {
       event.subject.fx = event.x;
       event.subject.fy = event.y;
     }
-
     function dragended(event: any) {
       if (!event.active) sim.alphaTarget(0);
       event.subject.fx = null;
       event.subject.fy = null;
     }
-
     return d3
       .drag<any, any>()
       .on("start", dragstarted)
@@ -150,23 +170,4 @@
     bind:this={canvas}
     class="w-full h-full cursor-grab active:cursor-grabbing"
   ></svg>
-
-  <div
-    class="absolute bottom-6 left-6 flex flex-col gap-3 p-4 bg-gray-950/40 backdrop-blur-md rounded-xl border border-gray-800/50"
-  >
-    <div
-      class="flex items-center gap-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest"
-    >
-      <div
-        class="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"
-      ></div>
-      <span>Person Node</span>
-    </div>
-    <div
-      class="flex items-center gap-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest"
-    >
-      <div class="w-2 h-2 rounded-full bg-gray-600"></div>
-      <span>KNOWS Relationship</span>
-    </div>
-  </div>
 </div>
