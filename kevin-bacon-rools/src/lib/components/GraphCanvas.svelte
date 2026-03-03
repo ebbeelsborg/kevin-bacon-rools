@@ -65,21 +65,24 @@
   $effect(() => {
     if (!simulation || persons.length === 0) return;
 
-    const oldNodes = new Map(simulation.nodes().map((d) => [d.id, d]));
+    const ids = new Set(persons.map((p) => p.id));
     const nodes: Node[] = persons.map((p) => {
       const old = oldNodes.get(p.id);
+      const isKevin = p.name === "Kevin Bacon";
       return {
         ...p,
         degree: 0,
-        x: old?.x,
-        y: old?.y,
+        x: old?.x ?? width / 2,
+        y: old?.y ?? height / 2,
         vx: old?.vx,
         vy: old?.vy,
+        fx: isKevin ? width / 2 : null,
+        fy: isKevin ? height / 2 : null,
       };
     });
 
     const links = connections
-      .filter((c) => oldNodes.has(c.personA) && oldNodes.has(c.personB))
+      .filter((c) => ids.has(c.personA) && ids.has(c.personB))
       .map((c) => ({
         id: c.id,
         source: c.personA,
