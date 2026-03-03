@@ -175,7 +175,7 @@ Return a brief summary.`,
           </div>
 
           <!-- Right: Sidebar for Upload -->
-          <div class="w-80 shrink-0 flex flex-col gap-6 pt-4">
+          <div class="w-80 shrink-0 flex flex-col gap-6">
             <div
               class="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm space-y-4"
             >
