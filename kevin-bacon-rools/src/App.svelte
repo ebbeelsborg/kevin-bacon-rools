@@ -32,7 +32,7 @@
     }
   });
 
-  const SPACE_ID = "xo6xP8";
+  const SPACE_ID = "EBYTmQ";
 
   async function openSpace() {
     space = await rool.openSpace(SPACE_ID, { conversationId: "main" });
