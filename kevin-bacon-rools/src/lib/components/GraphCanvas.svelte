@@ -33,11 +33,11 @@
         d3
           .forceLink<Node, Link>()
           .id((d) => (d as any).id)
-          .distance(150),
+          .distance(100),
       )
-      .force("charge", d3.forceManyBody().strength(-400))
+      .force("charge", d3.forceManyBody().strength(-200))
       .force("center", d3.forceCenter(width / 2, height / 2))
-      .force("collision", d3.forceCollide().radius(60));
+      .force("collision", d3.forceCollide().radius(40));
 
     simulation.on("tick", () => {
       linkGroup
@@ -86,59 +86,30 @@
       .data(links, (d: any) => d.id)
       .join("line")
       .attr("stroke", "#374151")
-      .attr("stroke-width", 2);
+      .attr("stroke-width", 1.5);
 
     const g = nodeGroup
       .selectAll("g")
       .data(nodes, (d: any) => d.id)
       .join("g");
 
-    // Clear previous elements
     g.selectAll("*").remove();
 
-    // Node Container
-    g.each(function (d: any) {
-      const el = d3.select(this);
+    g.append("circle")
+      .attr("r", 15)
+      .attr("fill", "#111827")
+      .attr("stroke", (d: any) =>
+        d.name === "Kevin Bacon" ? "#ef4444" : "#22c55e",
+      )
+      .attr("stroke-width", 2);
 
-      if (d.image_url) {
-        // Use foreignObject for the image to get easy circular cropping
-        const fo = el
-          .append("foreignObject")
-          .attr("x", -30)
-          .attr("y", -30)
-          .attr("width", 60)
-          .attr("height", 60);
-
-        fo.append("xhtml:div")
-          .style("width", "60px")
-          .style("height", "60px")
-          .style("border-radius", "50%")
-          .style("background-image", `url(${d.image_url})`)
-          .style("background-size", "cover")
-          .style("background-position", "center")
-          .style(
-            "border",
-            `2.5px solid ${d.name === "Kevin Bacon" ? "#ef4444" : "#22c55e"}`,
-          )
-          .style("box-shadow", "0 4px 10px rgba(0,0,0,0.5)");
-      } else {
-        // Fallback to standard circle
-        el.append("circle")
-          .attr("r", 30)
-          .attr("fill", "#111827")
-          .attr("stroke", d.name === "Kevin Bacon" ? "#ef4444" : "#22c55e")
-          .attr("stroke-width", 2.5);
-      }
-
-      el.append("text")
-        .text(d.name)
-        .attr("text-anchor", "middle")
-        .attr("dy", 45)
-        .attr("fill", "#F3F4F6")
-        .attr("font-size", "12px")
-        .attr("font-weight", "700")
-        .style("text-shadow", "0 2px 4px rgba(0,0,0,0.8)");
-    });
+    g.append("text")
+      .text((d: any) => d.name)
+      .attr("text-anchor", "middle")
+      .attr("dy", 35)
+      .attr("fill", "#9CA3AF")
+      .attr("font-size", "11px")
+      .attr("font-weight", "600");
 
     if (nodes.length !== oldNodes.size) {
       simulation.alpha(0.3).restart();
