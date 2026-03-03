@@ -96,12 +96,12 @@
     g.selectAll("*").remove();
 
     g.append("circle")
-      .attr("r", 15)
-      .attr("fill", "#111827")
-      .attr("stroke", (d: any) =>
+      .attr("r", 8)
+      .attr("fill", (d: any) =>
         d.name === "Kevin Bacon" ? "#ef4444" : "#22c55e",
       )
-      .attr("stroke-width", 2);
+      .attr("stroke", "#111827")
+      .attr("stroke-width", 1);
 
     g.append("text")
       .text((d: any) => d.name)
