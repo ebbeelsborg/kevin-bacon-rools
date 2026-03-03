@@ -36,8 +36,8 @@
 
 <div
   class="relative p-6 border-2 border-dashed rounded-2xl transition-all flex flex-col items-center justify-center gap-3 text-center group {isProcessing
-    ? 'border-blue-500 bg-blue-950'
-    : 'border-gray-700 bg-gray-800 hover:bg-gray-750'}"
+    ? 'border-blue-500 bg-blue-50/50'
+    : 'border-slate-200 bg-slate-50 hover:bg-white'}"
   ondrop={handleDrop}
   ondragover={handleDragOver}
   role="button"
@@ -46,16 +46,16 @@
   {#if isProcessing}
     <div class="flex items-center gap-3">
       <div
-        class="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"
+        class="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"
       ></div>
-      <p class="text-sm text-blue-400 font-medium">Identifying people...</p>
+      <p class="text-sm text-blue-600 font-bold">Identifying people...</p>
     </div>
   {:else}
     <div
-      class="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center group-hover:scale-110 transition-transform"
+      class="w-10 h-10 rounded-full bg-white shadow-sm border border-slate-100 flex items-center justify-center group-hover:scale-110 transition-transform"
     >
       <svg
-        class="w-5 h-5 text-gray-400"
+        class="w-5 h-5 text-slate-400"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -69,8 +69,8 @@
       </svg>
     </div>
     <div>
-      <p class="text-gray-200 font-medium text-sm">Drop a photo here</p>
-      <p class="text-gray-500 text-xs mt-0.5">PNG or JPG only</p>
+      <p class="text-slate-800 font-bold text-sm">Drop a photo here</p>
+      <p class="text-slate-400 text-xs mt-0.5">PNG or JPG only</p>
     </div>
     <input
       type="file"
@@ -82,15 +82,12 @@
 
   {#if errorMessage}
     <div
-      class="w-full mt-2 px-3 py-2 bg-red-950 border border-red-800 rounded-lg"
+      class="w-full mt-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg"
     >
-      <p class="text-xs text-red-400 font-medium">{errorMessage}</p>
+      <p class="text-xs text-red-600 font-bold">{errorMessage}</p>
     </div>
   {/if}
 </div>
 
 <style>
-  .bg-gray-750:hover {
-    background-color: rgba(55, 65, 81, 0.8);
-  }
 </style>

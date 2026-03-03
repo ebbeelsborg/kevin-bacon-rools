@@ -85,7 +85,7 @@
       .selectAll("line")
       .data(links, (d: any) => d.id)
       .join("line")
-      .attr("stroke", "#374151")
+      .attr("stroke", "#e2e8f0")
       .attr("stroke-width", 1.5);
 
     const g = nodeGroup
@@ -100,14 +100,14 @@
       .attr("fill", (d: any) =>
         d.name === "Kevin Bacon" ? "#ef4444" : "#22c55e",
       )
-      .attr("stroke", "#111827")
-      .attr("stroke-width", 1);
+      .attr("stroke", "#ffffff")
+      .attr("stroke-width", 1.5);
 
     g.append("text")
       .text((d: any) => d.name)
       .attr("text-anchor", "middle")
-      .attr("dy", 35)
-      .attr("fill", "#9CA3AF")
+      .attr("dy", 25)
+      .attr("fill", "#64748b")
       .attr("font-size", "11px")
       .attr("font-weight", "600");
 
@@ -118,7 +118,7 @@
 </script>
 
 <div
-  class="w-full h-[600px] bg-gray-900 rounded-3xl overflow-hidden border border-gray-800 shadow-2xl relative"
+  class="w-full h-[600px] bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-sm relative"
 >
   <svg bind:this={canvas} class="w-full h-full"></svg>
 </div>

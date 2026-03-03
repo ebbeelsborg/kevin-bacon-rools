@@ -82,24 +82,26 @@ The space contains objects with these types:
 - KNOWS: { type: "KNOWS", personA: string, personB: string, weight: number, created_at: number, updated_at: number }
 
 Rules:
-1. When asked to identify people in a photo, search the web to find out who they are.
-2. For each person identified, check if a Person object with that name already exists.
-3. If the person exists, reuse their ID. If not, create a new Person object.
-4. Create APPEARED_IN relationships linking each person to the photo.
-5. For every pair of people in the same photo, create/update a KNOWS relationship.
-6. Always respond with a brief summary of who you found.`);
+1. Identification: When asked to identify people in a photo, search the web to find out exactly who they are. Be precise.
+2. Deduplication: For each person identified, check if a Person object with that name already exists. Reuse their ID if they do.
+3. Creation: If they don't exist, create a new Person object.
+4. Associations: Create APPEARED_IN relationships linking each identified person to the photo.
+5. RELATIONSHIP MAPPING (CRITICAL): For EVERY POSSIBLE PAIR of people identified in the photo, create a KNOWS relationship link between them. 
+   - Example: If you find A, B, and C, you MUST create/update relationships: (A, B), (B, C), and (A, C).
+   - If a relationship already exists, increment the weight.
+6. Summary: Always respond with a brief list of found names and confirmation of the links created.`);
 
       // 4. Use LLM to identify people in the photo
       await space.prompt(
         `Look at this image and identify all the people in it: ${imageUrl}
 
 Search the web to determine who these people are. Then for each person:
-1. Check if a Person with that name already exists in the space
-2. If not, create a new Person object with their name
-3. Create APPEARED_IN relationships to the Photo object that has file_reference "${imageUrl}"
-4. For every pair of people you identify in this photo, create or update a KNOWS relationship between them
+1. Check if a Person with that name already exists in the space.
+2. If not, create a new Person object.
+3. Link each person to this Photo (file_reference: "${imageUrl}").
+4. IMPORTANT: Link EVERY PAIR of people found in this photo with a KNOWS relationship. No one should be left unlinked.
 
-Return a brief summary of who you found.`,
+Return a brief summary.`,
         { ephemeral: false },
       );
     } catch (e) {
@@ -113,15 +115,15 @@ Return a brief summary of who you found.`,
 </script>
 
 <div
-  class="min-h-dvh bg-gray-950 text-gray-200 font-sans selection:bg-blue-500/30"
+  class="min-h-dvh bg-slate-50 text-slate-900 font-sans selection:bg-blue-500/10"
 >
   {#if rool.authenticated === undefined}
     <div
-      class="fixed inset-0 flex items-center justify-center bg-gray-950 z-50"
+      class="fixed inset-0 flex items-center justify-center bg-slate-50 z-50"
     >
       <div class="animate-pulse flex flex-col items-center gap-4">
-        <div class="w-16 h-16 rounded-full bg-blue-600/50 blur-xl"></div>
-        <p class="text-blue-400 font-medium tracking-widest uppercase text-xs">
+        <div class="w-16 h-16 rounded-full bg-blue-600/10 blur-xl"></div>
+        <p class="text-blue-600 font-bold tracking-widest uppercase text-xs">
           Initializing Rool
         </p>
       </div>
@@ -131,7 +133,7 @@ Return a brief summary of who you found.`,
   {:else}
     <div class="flex flex-col h-screen overflow-hidden">
       <header
-        class="h-16 shrink-0 border-b border-gray-800 bg-gray-900/50 backdrop-blur-xl flex items-center justify-between px-8 z-40"
+        class="h-16 shrink-0 border-b border-slate-200 bg-white/80 backdrop-blur-xl flex items-center justify-between px-8 z-40 shadow-sm"
       >
         <div class="flex items-center gap-3">
           <img
@@ -148,7 +150,7 @@ Return a brief summary of who you found.`,
         <div class="flex items-center gap-4">
           <button
             onclick={() => rool.logout()}
-            class="text-xs font-bold text-gray-500 hover:text-white transition-colors uppercase tracking-widest"
+            class="text-xs font-bold text-slate-400 hover:text-slate-900 transition-colors uppercase tracking-widest"
           >
             Logout
           </button>
@@ -161,9 +163,9 @@ Return a brief summary of who you found.`,
         {#if !space}
           <div class="flex flex-col items-center justify-center h-64 gap-4">
             <div
-              class="w-12 h-12 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"
+              class="w-12 h-12 border-4 border-blue-500/10 border-t-blue-600 rounded-full animate-spin"
             ></div>
-            <p class="text-gray-500 text-sm italic">
+            <p class="text-slate-400 text-sm font-medium italic">
               Accessing shared Rool space...
             </p>
           </div>
@@ -173,7 +175,7 @@ Return a brief summary of who you found.`,
               <div class="lg:col-span-9">
                 <div class="relative group">
                   <div
-                    class="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl blur opacity-20 group-hover:opacity-30 transition duration-1000"
+                    class="absolute -inset-0.5 bg-gradient-to-r from-blue-500/20 to-indigo-600/20 rounded-2xl blur-lg transition duration-1000"
                   ></div>
                   <GraphCanvas
                     persons={graphManager.persons.filter((p) => p.name)}
@@ -184,10 +186,10 @@ Return a brief summary of who you found.`,
 
               <div class="lg:col-span-3 space-y-6">
                 <div
-                  class="bg-gray-900/50 border border-gray-800 p-6 rounded-2xl shadow-xl space-y-4"
+                  class="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm space-y-4"
                 >
                   <h3
-                    class="text-xs font-black text-gray-500 uppercase tracking-widest"
+                    class="text-xs font-black text-slate-400 uppercase tracking-widest"
                   >
                     Build Graph
                   </h3>
@@ -219,10 +221,10 @@ Return a brief summary of who you found.`,
     background: transparent;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #1f2937;
+    background: #e2e8f0;
     border-radius: 10px;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #374151;
+    background: #cbd5e1;
   }
 </style>
