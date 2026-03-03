@@ -84,9 +84,9 @@ CRITICAL RULES — follow exactly:
 2. Deduplication: if a Person with the same name already exists, reuse their existing ID. Never create duplicates.
 3. Creation: if a visible person doesn't exist, create a new Person object.
 4. Photo update: set the Photo object's "people" field to a JSON array of ALL visible persons' IDs.
-5. Link merging (CRITICAL): For EVERY person visible in the photo:
+5. BIDIRECTIONAL LINKS (MANDATORY — do not skip): For EVERY person visible in the photo:
    a. Add to their "links" array the IDs of all OTHER people visible in this photo (merge, don't replace).
-   b. For every OTHER person already in the space who is ALSO visible, update THEIR "links" to include this person's ID (bidirectional).
+   b. For EVERY OTHER person visible in this photo, you MUST also update THEIR "links" to include this person's ID. Every co-visible pair must link to each other. If A is in the photo with B, then A.links must include B AND B.links must include A. No exceptions.
 6. All arrays MUST be proper JSON arrays: ["id1", "id2"]. NEVER comma-separated strings.
 7. DO NOT create any object type other than Person or Photo.
 8. Summary: brief list of names found.`);
@@ -107,11 +107,7 @@ FORMAT RULES (critical):
 Steps:
 1. Identify all VISIBLE people. For each: check if they exist by name, reuse existing ID or create new Person.
 2. Set this Photo object's "people" to a JSON array of all their IDs.
-3. For EVERY visible person, MERGE the other visible people's IDs into their "links" array.
-   - EXISTING people: also add the new/other visible people to THEIR "links" too (bidirectional).
-   - Example: RDJ (existing, links:[A,B]) and Cumberbatch (new) both visible here:
-     * RDJ.links becomes [A, B, Cumberbatch_id]
-     * Cumberbatch.links includes [RDJ_id, ...others]
+3. BIDIRECTIONAL LINKS (required): For EVERY visible person, MERGE the other visible people's IDs into their "links". Then for EVERY OTHER visible person, update THEIR "links" to include this person's ID. All co-visible pairs must link to each other — no exceptions.
 4. Only use Person and Photo object types.
 
 Return a brief list of who you can see in the photo.`,
