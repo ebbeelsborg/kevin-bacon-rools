@@ -21,7 +21,8 @@
     }
   });
 
-  type Node = Person & d3.SimulationNodeDatum & { degree: number };
+  type Node = Person &
+    d3.SimulationNodeDatum & { degree: number; isOrphan: boolean };
   type Link = d3.SimulationLinkDatum<Node> & { id: string };
 
   let simulation: d3.Simulation<Node, Link> | null = null;
@@ -40,11 +41,11 @@
         d3
           .forceLink<Node, Link>()
           .id((d) => (d as any).id)
-          .distance(100),
+          .distance(110),
       )
-      .force("charge", d3.forceManyBody().strength(-200))
+      .force("charge", d3.forceManyBody().strength(-250))
       .force("center", d3.forceCenter(width / 2, height / 2))
-      .force("collision", d3.forceCollide().radius(40));
+      .force("collision", d3.forceCollide().radius(45));
 
     simulation.on("tick", () => {
       linkGroup
@@ -63,22 +64,55 @@
   });
 
   $effect(() => {
-    if (!simulation || persons.length === 0) return;
+    if (!simulation || !linkGroup || !nodeGroup) return;
+    // Track persons and connections as deps so Svelte re-runs on any change
+    const _p = persons.length;
+    const _c = connections.length;
+
+    const connectedIds = new Set<string>();
+    connections.forEach((c) => {
+      connectedIds.add(c.personA);
+      connectedIds.add(c.personB);
+    });
 
     const oldNodes = new Map(simulation.nodes().map((d) => [d.id, d]));
     const ids = new Set(persons.map((p) => p.id));
-    const nodes: Node[] = persons.map((p) => {
+
+    // Orphan column: place orphans in a strip on the right side
+    const orphans = persons.filter((p) => !connectedIds.has(p.id));
+    const orphanColX = width - 80;
+    const orphanSpacing = Math.min(
+      40,
+      (height - 40) / Math.max(orphans.length, 1),
+    );
+
+    const nodes: Node[] = persons.map((p, i) => {
       const old = oldNodes.get(p.id);
       const isKevin = p.name === "Kevin Bacon";
+      const isOrphan = !connectedIds.has(p.id);
+      const orphanIndex = orphans.indexOf(p);
+
+      let defaultX = width / 2;
+      let defaultY = height / 2;
+      if (isOrphan) {
+        defaultX = orphanColX;
+        defaultY = 30 + orphanIndex * orphanSpacing;
+      }
+
       return {
         ...p,
         degree: 0,
-        x: old?.x ?? width / 2,
-        y: old?.y ?? height / 2,
+        isOrphan,
+        x: old?.x ?? defaultX,
+        y: old?.y ?? defaultY,
         vx: old?.vx,
         vy: old?.vy,
-        fx: isKevin ? width / 2 : null,
-        fy: isKevin ? height / 2 : null,
+        fx: isKevin ? width / 2 : isOrphan ? orphanColX : null,
+        fy: isKevin
+          ? height / 2
+          : isOrphan
+            ? 30 + orphanIndex * orphanSpacing
+            : null,
       };
     });
 
@@ -98,8 +132,9 @@
       .selectAll("line")
       .data(links, (d: any) => d.id)
       .join("line")
-      .attr("stroke", "#e2e8f0")
-      .attr("stroke-width", 1.5);
+      .attr("stroke", "#cbd5e1")
+      .attr("stroke-width", 1.5)
+      .attr("stroke-opacity", 0.7);
 
     const g = nodeGroup
       .selectAll("g")
@@ -108,25 +143,31 @@
 
     g.selectAll("*").remove();
 
+    // Orphans get a dimmer, smaller appearance
     g.append("circle")
-      .attr("r", 8)
-      .attr("fill", (d: any) =>
-        d.name === "Kevin Bacon" ? "#ef4444" : "#22c55e",
-      )
+      .attr("r", (d: any) => (d.isOrphan ? 6 : 8))
+      .attr("fill", (d: any) => {
+        if (d.name === "Kevin Bacon") return "#ef4444";
+        if (d.isOrphan) return "#94a3b8";
+        return "#22c55e";
+      })
       .attr("stroke", "#ffffff")
-      .attr("stroke-width", 1.5);
+      .attr("stroke-width", 1.5)
+      .attr("opacity", (d: any) => (d.isOrphan ? 0.6 : 1.0));
 
     g.append("text")
       .text((d: any) => d.name)
-      .attr("text-anchor", "middle")
-      .attr("dy", 25)
-      .attr("fill", "#64748b")
-      .attr("font-size", "11px")
+      .attr("text-anchor", (d: any) => (d.isOrphan ? "end" : "middle"))
+      .attr("dx", (d: any) => (d.isOrphan ? -10 : 0))
+      .attr("dy", (d: any) => (d.isOrphan ? 4 : 25))
+      .attr("fill", (d: any) => (d.isOrphan ? "#94a3b8" : "#475569"))
+      .attr("font-size", (d: any) => (d.isOrphan ? "10px" : "11px"))
       .attr("font-weight", "600");
 
-    if (nodes.length !== oldNodes.size) {
-      simulation.alpha(0.3).restart();
-    }
+    // Always restart — we always want the simulation to settle properly
+    // after any data change. The alpha controls how energetic it is.
+    const prevLength = _p; // referenced to avoid dead-code elimination
+    simulation.alpha(nodes.length !== oldNodes.size ? 0.4 : 0.15).restart();
   });
 </script>
 
@@ -136,4 +177,13 @@
   class="w-full h-full bg-white relative overflow-hidden"
 >
   <svg bind:this={canvas} class="w-full h-full"></svg>
+  {#if persons.length === 0}
+    <div
+      class="absolute inset-0 flex items-center justify-center pointer-events-none"
+    >
+      <p class="text-slate-300 text-sm font-medium italic">
+        Upload a photo to start building the graph
+      </p>
+    </div>
+  {/if}
 </div>

@@ -80,28 +80,34 @@ The space contains objects with these types:
 - Photo: { type: "Photo", file_reference: string, people: string[], upload_timestamp: number }
 
 CRITICAL RULES — follow exactly:
-1. ONLY create or reference Person objects for people who are PHYSICALLY VISIBLE in the photo. Never create a Person based on inference, association, family connections, or general knowledge about who someone knows.
-2. Deduplication: check if a Person with the same name already exists. If yes, reuse their ID.
-3. Creation: if the person is visible in the photo and doesn't exist in the space, create a new Person object.
-4. Update the Photo object's "people" array with the IDs of ONLY the people physically in the photo.
-5. For each person in the photo, update their "links" array to include the IDs of all OTHER people ALSO IN THE SAME PHOTO.
-6. Use object IDs (e.g., qC81GS) in arrays — never names.
-7. DO NOT create any object type other than Person or Photo. No KNOWS, no APPEARED_IN.
-8. Summary: respond with a brief list of names found in the photo.`);
+1. ONLY create or reference Person objects for people who are PHYSICALLY VISIBLE in the photo. Never infer, associate, or add family members/colleagues/friends.
+2. Deduplication: if a Person with the same name already exists, reuse their ID. Never create duplicates.
+3. Creation: if a visible person doesn't exist, create a new Person object.
+4. Update the Photo object's "people" field: a proper JSON array of IDs, e.g. ["abc123", "def456"].
+5. For each visible person, update their "links" field: a proper JSON array of IDs of the OTHER visible people in the same photo, e.g. ["abc123", "def456"]. NEVER a comma-separated string inside a single array element.
+6. Use 6-character object IDs in arrays — never names.
+7. DO NOT create any object type other than Person or Photo.
+8. Summary: brief list of names found in the photo.`);
 
       // 4. Use LLM to identify people in the photo
       await space.prompt(
         `Analyze this photo and identify the people who are PHYSICALLY VISIBLE in it: ${imageUrl}
 
 STRICT RULES:
-- Only create Person objects for faces/people you can actually see in this image.
-- Do NOT create people based on who the visible people might know, their family members, colleagues, or any other association.
-- If only one person is visible, only one Person object should be created or referenced.
+- Only create Person objects for faces you can literally see in this image.
+- Do NOT add people based on association, family connections, or world knowledge about who someone knows.
+- If only one person is visible, create/update only one Person and set their links to [].
+
+FORMAT RULES (very important):
+- The "links" field and "people" field MUST be proper JSON arrays of individual ID strings.
+- CORRECT: ["abc123", "def456"]
+- WRONG: ["abc123,def456"] (comma-separated string inside array)
+- WRONG: "abc123,def456" (plain string)
 
 Steps:
 1. For each person VISIBLE in the photo: check if they exist by name, create if not.
-2. Update this Photo object (file_reference: "${imageUrl}") — add their IDs to "people".
-3. Update each visible person's "links" array to include IDs of the other people ALSO VISIBLE in this same photo.
+2. Update this Photo object (file_reference: "${imageUrl}") — set "people" to a JSON array of their IDs.
+3. Update each visible person's "links" to a JSON array of IDs of the OTHER people ALSO VISIBLE in this photo.
 4. Only use Person and Photo object types.
 
 Return a brief list of who you can see in the photo.`,
