@@ -87,7 +87,8 @@ Rules:
 3. Creation: If they don't exist, create a new Person object.
 4. Associations: Create APPEARED_IN relationships linking each identified person to the photo.
 5. RELATIONSHIP MAPPING (CRITICAL): For EVERY POSSIBLE PAIR of people identified in the photo, create a KNOWS relationship link between them. 
-   - Example: If you find A, B, and C, you MUST create/update relationships: (A, B), (B, C), and (A, C).
+   - You MUST use the Object IDs (e.g., qC81GS) for "personA" and "personB". NEVER use names in relationship fields.
+   - Example: If you find A (ID: 1) and B (ID: 2), create KNOWS { personA: "1", personB: "2" }.
    - If a relationship already exists, increment the weight.
 6. Summary: Always respond with a brief list of found names and confirmation of the links created.`);
 
@@ -99,7 +100,7 @@ Search the web to determine who these people are. Then for each person:
 1. Check if a Person with that name already exists in the space.
 2. If not, create a new Person object.
 3. Link each person to this Photo (file_reference: "${imageUrl}").
-4. IMPORTANT: Link EVERY PAIR of people found in this photo with a KNOWS relationship. No one should be left unlinked.
+4. IMPORTANT: Link EVERY PAIR of people found in this photo with a KNOWS relationship. You MUST use their object IDs for the personA and personB fields.
 
 Return a brief summary.`,
         { ephemeral: false },

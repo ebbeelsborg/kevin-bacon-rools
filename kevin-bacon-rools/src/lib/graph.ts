@@ -8,18 +8,18 @@ export class GraphManager {
   }
 
   get persons(): Person[] {
-    return this.objects.filter((obj): obj is Person => obj.type === 'Person');
+    return this.objects.filter((obj): obj is Person => obj.type?.toLowerCase() === 'person');
   }
 
   get photos(): Photo[] {
-    return this.objects.filter((obj): obj is Photo => obj.type === 'Photo');
+    return this.objects.filter((obj): obj is Photo => obj.type?.toLowerCase() === 'photo');
   }
 
   get appearances(): Appearance[] {
-    return this.objects.filter((obj): obj is Appearance => obj.type === 'APPEARED_IN');
+    return this.objects.filter((obj): obj is Appearance => obj.type?.toLowerCase() === 'appeared_in');
   }
 
   get connections(): Knows[] {
-    return this.objects.filter((obj): obj is Knows => obj.type === 'KNOWS');
+    return this.objects.filter((obj): obj is Knows => obj.type?.toLowerCase() === 'knows');
   }
 }
