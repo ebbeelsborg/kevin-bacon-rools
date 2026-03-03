@@ -7,8 +7,6 @@
   import Splash from "./Splash.svelte";
   import UploadPanel from "./lib/components/UploadPanel.svelte";
   import GraphCanvas from "./lib/components/GraphCanvas.svelte";
-  import Leaderboard from "./lib/components/Leaderboard.svelte";
-  import MetricsPanel from "./lib/components/MetricsPanel.svelte";
   import { GraphManager } from "./lib/graph";
   import { seedGraph } from "./lib/seed";
   import type { RoolObject } from "./lib/types";
@@ -26,10 +24,7 @@
 
   let isProcessing = $state(false);
   let uploadError = $state("");
-
-  let searchSource = $state<string>("");
-  let searchTarget = $state<string>("");
-  let shortestPath = $state<string[] | null>(null);
+  let isSeeding = $state(false);
 
   $effect(() => {
     if (rool.authenticated && rool.spaces && !space) {
@@ -38,6 +33,7 @@
   });
 
   async function openSpace() {
+    // Try to find a space named exactly APP_NAME
     const existing = rool.spaces!.find((s: any) => s.name === APP_NAME);
     space = existing
       ? await rool.openSpace(existing.id, { conversationId: "main" })
@@ -45,6 +41,7 @@
 
     collection = space.collection({});
 
+    // Ensure it's shared with editor access for everyone
     try {
       if (space.role === "owner" || space.role === "admin") {
         await space.setLinkAccess("editor");
@@ -53,7 +50,11 @@
       console.warn("Could not set link access:", e);
     }
 
-    seedGraph(space);
+    if (!isSeeding) {
+      isSeeding = true;
+      await seedGraph(space);
+      isSeeding = false;
+    }
   }
 
   const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/jpg"];
@@ -120,25 +121,6 @@ Return a brief summary of who you found.`,
       isProcessing = false;
     }
   }
-
-  function findPath() {
-    if (!searchSource || !searchTarget) return;
-    const result = graphManager.findShortestPath(searchSource, searchTarget);
-    shortestPath = result?.path ?? null;
-  }
-
-  let topPersons = $derived(
-    graphManager.persons
-      .map((p) => ({
-        ...p,
-        connections: objects.filter(
-          (o) =>
-            o.type === "KNOWS" && (o.personA === p.id || o.personB === p.id),
-        ).length,
-      }))
-      .sort((a, b) => b.connections - a.connections)
-      .slice(0, 5),
-  );
 </script>
 
 <div
@@ -175,17 +157,6 @@ Return a brief summary of who you found.`,
           </h1>
         </div>
         <div class="flex items-center gap-4">
-          <div
-            class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20"
-          >
-            <div
-              class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"
-            ></div>
-            <span
-              class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider"
-              >Live Supergraph</span
-            >
-          </div>
           <button
             onclick={() => rool.logout()}
             class="text-xs font-bold text-gray-500 hover:text-white transition-colors uppercase tracking-widest"
@@ -208,120 +179,54 @@ Return a brief summary of who you found.`,
             </p>
           </div>
         {:else}
-          <MetricsPanel
-            density={graphManager.getGraphDensity()}
-            connectionsCount={graphManager.connections.length}
-            personsCount={graphManager.persons.filter((p) => p.name).length}
-          />
-
-          <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            <div class="lg:col-span-8 space-y-6">
-              <div class="relative group">
-                <div
-                  class="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl blur opacity-20 group-hover:opacity-30 transition duration-1000"
-                ></div>
-                <GraphCanvas
-                  persons={graphManager.persons.filter((p) => p.name)}
-                  connections={graphManager.connections}
-                  {shortestPath}
-                  onNodeClick={(id) => {
-                    if (!searchSource) searchSource = id;
-                    else if (!searchTarget) {
-                      searchTarget = id;
-                      findPath();
-                    } else {
-                      searchSource = id;
-                      searchTarget = "";
-                      shortestPath = null;
-                    }
-                  }}
-                />
+          <div class="max-w-6xl mx-auto space-y-8">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              <div class="lg:col-span-9">
+                <div class="relative group">
+                  <div
+                    class="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl blur opacity-20 group-hover:opacity-30 transition duration-1000"
+                  ></div>
+                  <GraphCanvas
+                    persons={graphManager.persons.filter((p) => p.name)}
+                    connections={graphManager.connections}
+                  />
+                </div>
               </div>
 
-              <!-- Path Search UI -->
-              <div
-                class="bg-gray-900 border border-gray-800 p-6 rounded-2xl shadow-xl flex flex-wrap items-center gap-4 group"
-              >
-                <div class="flex-1 min-w-[200px]">
-                  <label
-                    for="search-source"
-                    class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 px-1"
-                    >Source Person</label
-                  >
-                  <select
-                    id="search-source"
-                    bind:value={searchSource}
-                    class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
-                  >
-                    <option value="">Select a person...</option>
-                    {#each graphManager.persons.filter((p) => p.name) as p}
-                      <option value={p.id}>{p.name}</option>
-                    {/each}
-                  </select>
-                </div>
-                <div class="flex-1 min-w-[200px]">
-                  <label
-                    for="search-target"
-                    class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 px-1"
-                    >Target Person</label
-                  >
-                  <select
-                    id="search-target"
-                    bind:value={searchTarget}
-                    class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
-                  >
-                    <option value="">Select a person...</option>
-                    {#each graphManager.persons.filter((p) => p.name) as p}
-                      <option value={p.id}>{p.name}</option>
-                    {/each}
-                  </select>
-                </div>
-                <button
-                  onclick={findPath}
-                  disabled={!searchSource || !searchTarget}
-                  class="bg-blue-600 hover:bg-blue-500 active:scale-95 disabled:opacity-30 disabled:active:scale-100 text-white font-bold px-8 py-2.5 rounded-xl transition-all shadow-lg shadow-blue-500/20 mt-6"
+              <div class="lg:col-span-3 space-y-6">
+                <div
+                  class="bg-gray-900/50 border border-gray-800 p-6 rounded-2xl shadow-xl space-y-4"
                 >
-                  Find Degrees
-                </button>
-                {#if shortestPath}
-                  <div
-                    class="w-full mt-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center justify-between"
+                  <h3
+                    class="text-xs font-black text-gray-500 uppercase tracking-widest"
                   >
-                    <p class="text-sm font-medium text-blue-300">
-                      Distance: <span class="text-lg font-black text-white"
-                        >{shortestPath.length - 1}</span
-                      > degrees of separation
-                    </p>
-                    <button
-                      onclick={() => {
-                        shortestPath = null;
-                        searchSource = "";
-                        searchTarget = "";
-                      }}
-                      class="text-[10px] font-bold text-blue-400 uppercase tracking-widest hover:text-white transition-colors"
-                      >Clear</button
+                    Build Graph
+                  </h3>
+                  <UploadPanel
+                    onUpload={handleUpload}
+                    {isProcessing}
+                    errorMessage={uploadError}
+                  />
+                </div>
+
+                <div
+                  class="bg-blue-500/5 border border-blue-500/10 p-4 rounded-xl"
+                >
+                  <p
+                    class="text-[10px] text-blue-400 font-bold uppercase tracking-wider mb-2"
+                  >
+                    Live Status
+                  </p>
+                  <div class="flex items-center gap-2">
+                    <div
+                      class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"
+                    ></div>
+                    <span class="text-xs text-gray-400"
+                      >{graphManager.persons.length} People Linked</span
                     >
                   </div>
-                {/if}
+                </div>
               </div>
-            </div>
-
-            <!-- Right Column: Upload & Leaderboard -->
-            <div class="lg:col-span-4 space-y-8">
-              <div class="space-y-4">
-                <h3
-                  class="text-xs font-black text-gray-500 uppercase tracking-[0.2em] px-1"
-                >
-                  Add People
-                </h3>
-                <UploadPanel
-                  onUpload={handleUpload}
-                  {isProcessing}
-                  errorMessage={uploadError}
-                />
-              </div>
-
-              <Leaderboard {topPersons} />
             </div>
           </div>
         {/if}
