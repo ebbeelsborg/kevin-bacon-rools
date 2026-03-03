@@ -8,7 +8,6 @@
   import UploadPanel from "./lib/components/UploadPanel.svelte";
   import GraphCanvas from "./lib/components/GraphCanvas.svelte";
   import { GraphManager } from "./lib/graph";
-  import { seedGraph } from "./lib/seed";
   import type { RoolObject } from "./lib/types";
 
   const APP_NAME = "Kevin Bacon Rools";
@@ -24,7 +23,6 @@
 
   let isProcessing = $state(false);
   let uploadError = $state("");
-  let isSeeding = $state(false);
 
   $effect(() => {
     if (rool.authenticated && rool.spaces && !space) {
@@ -45,12 +43,6 @@
       }
     } catch (e) {
       console.warn("Could not set link access:", e);
-    }
-
-    if (!isSeeding) {
-      isSeeding = true;
-      await seedGraph(space);
-      isSeeding = false;
     }
   }
 
