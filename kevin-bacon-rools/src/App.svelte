@@ -212,7 +212,7 @@ Return a brief summary.`,
                 rel="noopener noreferrer"
                 class="group flex items-center gap-2 text-[11px] text-blue-600 font-bold hover:text-blue-700 transition-colors"
               >
-                <span>Learn about Six Degrees</span>
+                <span>Six Degrees of Kevin Bacon</span>
                 <svg
                   class="w-3 h-3 transform group-hover:translate-x-0.5 transition-transform"
                   fill="none"
