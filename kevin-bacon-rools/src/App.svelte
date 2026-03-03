@@ -74,34 +74,37 @@
 
       // 3. Set system instruction for graph-building behavior
       await space.setSystemInstruction(`You are a graph-building assistant for the "Kevin Bacon Rools" app.
- 
+
 The space contains objects with these types:
 - Person: { type: "Person", name: string, links: string[], created_at: number }
 - Photo: { type: "Photo", file_reference: string, people: string[], upload_timestamp: number }
- 
-Rules:
-1. Identification: Identify people in photos precisely.
-2. Deduplication: Reuse existing Person IDs by name.
-3. Creation: If a person doesn't exist, create a new Person object.
-4. Associations (CRITICAL):
-   - Update the Photo object's "people" array with the Person IDs.
-   - For EACH person identified, update their "links" array to include all OTHER people found in the same photo.
-   - You MUST use object IDs (e.g., qC81GS) in these arrays.
-   - DO NOT create any other object types (no KNOWS, no APPEARED_IN).
-5. Summary: Respond with a brief list of names found.`);
+
+CRITICAL RULES — follow exactly:
+1. ONLY create or reference Person objects for people who are PHYSICALLY VISIBLE in the photo. Never create a Person based on inference, association, family connections, or general knowledge about who someone knows.
+2. Deduplication: check if a Person with the same name already exists. If yes, reuse their ID.
+3. Creation: if the person is visible in the photo and doesn't exist in the space, create a new Person object.
+4. Update the Photo object's "people" array with the IDs of ONLY the people physically in the photo.
+5. For each person in the photo, update their "links" array to include the IDs of all OTHER people ALSO IN THE SAME PHOTO.
+6. Use object IDs (e.g., qC81GS) in arrays — never names.
+7. DO NOT create any object type other than Person or Photo. No KNOWS, no APPEARED_IN.
+8. Summary: respond with a brief list of names found in the photo.`);
 
       // 4. Use LLM to identify people in the photo
       await space.prompt(
-        `Look at this image and identify all the people in it: ${imageUrl}
- 
-1. For each person:
-   - Check if they exist in the space by name.
-   - If not, create a new Person object.
-2. Update this Photo object (file_reference: "${imageUrl}") by adding their IDs to the "people" array.
-3. For every person found in this photo, update their "links" array to include the IDs of all other people also present in this photo.
-4. IMPORTANT: Only use Person and Photo types. NO "KNOWS" or "APPEARED_IN" objects.
- 
-Return a brief summary.`,
+        `Analyze this photo and identify the people who are PHYSICALLY VISIBLE in it: ${imageUrl}
+
+STRICT RULES:
+- Only create Person objects for faces/people you can actually see in this image.
+- Do NOT create people based on who the visible people might know, their family members, colleagues, or any other association.
+- If only one person is visible, only one Person object should be created or referenced.
+
+Steps:
+1. For each person VISIBLE in the photo: check if they exist by name, create if not.
+2. Update this Photo object (file_reference: "${imageUrl}") — add their IDs to "people".
+3. Update each visible person's "links" array to include IDs of the other people ALSO VISIBLE in this same photo.
+4. Only use Person and Photo object types.
+
+Return a brief list of who you can see in the photo.`,
         { ephemeral: false },
       );
     } catch (e) {
