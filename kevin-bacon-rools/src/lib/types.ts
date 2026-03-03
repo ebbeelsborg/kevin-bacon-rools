@@ -2,30 +2,14 @@ export interface Person {
   id: string;
   type: 'Person';
   name?: string;
-  face_embedding?: number[];
   created_at: number;
 }
 
 export interface Photo {
   id: string;
   type: 'Photo';
-  file_reference: string; // Base64 for simplicity in this demo or Rool space reference
+  file_reference: string;
   upload_timestamp: number;
-}
-
-export interface BoundingBox {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-export interface Appearance {
-  id: string;
-  type: 'APPEARED_IN';
-  personId: string;
-  photoId: string;
-  boundingBox: BoundingBox;
 }
 
 export interface Knows {
@@ -36,6 +20,13 @@ export interface Knows {
   weight: number;
   created_at: number;
   updated_at: number;
+}
+
+export interface Appearance {
+  id: string;
+  type: 'APPEARED_IN';
+  personId: string;
+  photoId: string;
 }
 
 export type RoolObject = Person | Photo | Appearance | Knows;
