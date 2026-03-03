@@ -60,6 +60,29 @@
   $effect(() => {
     if (!simulation || persons.length === 0) return;
 
+    const nodesWithImages = persons.filter((p) => p.image_url);
+
+    // Update Patterns
+    const patternJoin = defs
+      .selectAll("pattern")
+      .data(nodesWithImages, (d: any) => d.id)
+      .join("pattern")
+      .attr("id", (d: any) => `pattern-${d.id}`)
+      .attr("width", 1)
+      .attr("height", 1)
+      .attr("patternContentUnits", "objectBoundingBox");
+
+    patternJoin
+      .selectAll("image")
+      .data((d) => [d])
+      .join("image")
+      .attr("href", (d: any) => d.image_url)
+      .attr("x", 0)
+      .attr("y", 0)
+      .attr("width", 1)
+      .attr("height", 1)
+      .attr("preserveAspectRatio", "xMidYMid slice");
+
     const oldNodes = new Map(simulation.nodes().map((d) => [d.id, d]));
     const nodes: Node[] = persons.map((p) => {
       const old = oldNodes.get(p.id);
@@ -79,30 +102,9 @@
       target: c.personB,
     }));
 
-    // Update Defs (patterns for images)
-    const patterns = defs
-      .selectAll("pattern")
-      .data(
-        nodes.filter((n) => n.image_url),
-        (d: any) => d.id,
-      )
-      .join("pattern")
-      .attr("id", (d: any) => `pattern-${d.id}`)
-      .attr("height", "100%")
-      .attr("width", "100%")
-      .attr("patternContentUnits", "objectBoundingBox");
-
-    patterns
-      .selectAll("image")
-      .data((d) => [d])
-      .join("image")
-      .attr("height", 1)
-      .attr("width", 1)
-      .attr("preserveAspectRatio", "xMidYMid slice")
-      .attr("xlink:href", (d: any) => d.image_url);
-
     simulation.nodes(nodes);
-    (simulation.force("link") as any).links(links);
+    const linkForce: any = simulation.force("link");
+    linkForce.links(links);
 
     linkGroup
       .selectAll("line")
