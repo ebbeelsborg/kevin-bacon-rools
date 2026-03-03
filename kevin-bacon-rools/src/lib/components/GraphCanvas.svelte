@@ -20,9 +20,11 @@
   let simulation: d3.Simulation<Node, Link> | null = null;
   let linkGroup: any;
   let nodeGroup: any;
+  let defs: any;
 
   onMount(() => {
     const svg = d3.select(canvas);
+    defs = svg.append("defs");
     linkGroup = svg.append("g");
     nodeGroup = svg.append("g");
 
@@ -33,11 +35,11 @@
         d3
           .forceLink<Node, Link>()
           .id((d) => (d as any).id)
-          .distance(100),
+          .distance(120),
       )
-      .force("charge", d3.forceManyBody().strength(-200))
+      .force("charge", d3.forceManyBody().strength(-300))
       .force("center", d3.forceCenter(width / 2, height / 2))
-      .force("collision", d3.forceCollide().radius(40));
+      .force("collision", d3.forceCollide().radius(50));
 
     simulation.on("tick", () => {
       linkGroup
@@ -77,6 +79,28 @@
       target: c.personB,
     }));
 
+    // Update Defs (patterns for images)
+    const patterns = defs
+      .selectAll("pattern")
+      .data(
+        nodes.filter((n) => n.image_url),
+        (d: any) => d.id,
+      )
+      .join("pattern")
+      .attr("id", (d: any) => `pattern-${d.id}`)
+      .attr("height", "100%")
+      .attr("width", "100%")
+      .attr("patternContentUnits", "objectBoundingBox");
+
+    patterns
+      .selectAll("image")
+      .data((d) => [d])
+      .join("image")
+      .attr("height", 1)
+      .attr("width", 1)
+      .attr("preserveAspectRatio", "xMidYMid slice")
+      .attr("xlink:href", (d: any) => d.image_url);
+
     simulation.nodes(nodes);
     (simulation.force("link") as any).links(links);
 
@@ -95,8 +119,10 @@
     g.selectAll("circle")
       .data((d) => [d])
       .join("circle")
-      .attr("r", 15)
-      .attr("fill", "#111827")
+      .attr("r", 25)
+      .attr("fill", (d: any) =>
+        d.image_url ? `url(#pattern-${d.id})` : "#111827",
+      )
       .attr("stroke", (d: any) =>
         d.name === "Kevin Bacon" ? "#ef4444" : "#22c55e",
       )
@@ -107,9 +133,10 @@
       .join("text")
       .text((d: any) => d.name)
       .attr("text-anchor", "middle")
-      .attr("dy", 35)
+      .attr("dy", 45)
       .attr("fill", "#9CA3AF")
-      .attr("font-size", "11px");
+      .attr("font-size", "11px")
+      .attr("font-weight", "600");
 
     if (nodes.length !== oldNodes.size) {
       simulation.alpha(0.3).restart();

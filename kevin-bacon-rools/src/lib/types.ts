@@ -2,6 +2,7 @@ export interface Person {
   id: string;
   type: 'Person';
   name?: string;
+  image_url?: string;
   created_at: number;
 }
 

@@ -76,26 +76,27 @@
       await space.setSystemInstruction(`You are a graph-building assistant for the "Kevin Bacon Rools" app.
 
 The space contains objects with these types:
-- Person: { type: "Person", name: string, created_at: number }
+- Person: { type: "Person", name: string, image_url: string, created_at: number }
 - Photo: { type: "Photo", file_reference: string, upload_timestamp: number }
 - APPEARED_IN: { type: "APPEARED_IN", personId: string, photoId: string }
 - KNOWS: { type: "KNOWS", personA: string, personB: string, weight: number, created_at: number, updated_at: number }
 
 Rules:
 1. When asked to identify people in a photo, search the web to find out who they are.
-2. For each person identified, check if a Person object with that name already exists (use findObjects with where: { type: "Person", name: "<name>" }).
-3. If the person exists, reuse their ID. If not, create a new Person object.
-4. Create APPEARED_IN relationships linking each person to the photo.
-5. For every pair of people in the same photo, create a KNOWS relationship if one doesn't already exist, or increment the weight if it does.
-6. Always respond with a brief summary of who you found and what relationships you created.`);
+2. For each person identified, search the web for a clean URL to a photo of their face (prefer official or professional shots).
+3. Check if a Person object with that name already exists.
+4. If the person exists, reuse their ID and update their image_url if they don't have one. If not, create a new Person object.
+5. Create APPEARED_IN relationships linking each person to the photo.
+6. For every pair of people in the same photo, create/update a KNOWS relationship.
+7. Always respond with a brief summary of who you found.`);
 
       // 4. Use LLM to identify people in the photo
       await space.prompt(
         `Look at this image and identify all the people in it: ${imageUrl}
 
-Search the web to determine who these people are. Then for each person:
+Search the web to determine who these people are and find a high-quality URL for a headshot/face photo of each. Then for each person:
 1. Check if a Person with that name already exists in the space
-2. If not, create a new Person object with their name
+2. If not, create a new Person object with their name and the image_url you found
 3. Create APPEARED_IN relationships to the Photo object that has file_reference "${imageUrl}"
 4. For every pair of people you identify in this photo, create or update a KNOWS relationship between them
 
