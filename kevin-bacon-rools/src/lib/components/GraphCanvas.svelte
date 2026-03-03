@@ -20,11 +20,9 @@
   let simulation: d3.Simulation<Node, Link> | null = null;
   let linkGroup: any;
   let nodeGroup: any;
-  let defs: any;
 
   onMount(() => {
     const svg = d3.select(canvas);
-    defs = svg.append("defs");
     linkGroup = svg.append("g");
     nodeGroup = svg.append("g");
 
@@ -59,33 +57,6 @@
 
   $effect(() => {
     if (!simulation || persons.length === 0) return;
-
-    console.log("GraphCanvas Persons Data:", persons);
-
-    const nodesWithImages = persons.filter((p) => p.image_url);
-    console.log("Nodes with images:", nodesWithImages);
-
-    // Update Patterns
-    const patternJoin = defs
-      .selectAll("pattern")
-      .data(nodesWithImages, (d: any) => d.id)
-      .join("pattern")
-      .attr("id", (d: any) => `pattern-${d.id}`)
-      .attr("width", 1)
-      .attr("height", 1)
-      .attr("patternContentUnits", "objectBoundingBox");
-
-    patternJoin
-      .selectAll("image")
-      .data((d) => [d])
-      .join("image")
-      .attr("href", (d: any) => d.image_url)
-      .attr("x", 0)
-      .attr("y", 0)
-      .attr("width", 1)
-      .attr("height", 1)
-      .attr("preserveAspectRatio", "xMidYMid slice")
-      .on("error", (e: any) => console.error("Pattern image load error:", e));
 
     const oldNodes = new Map(simulation.nodes().map((d) => [d.id, d]));
     const nodes: Node[] = persons.map((p) => {
@@ -122,28 +93,52 @@
       .data(nodes, (d: any) => d.id)
       .join("g");
 
-    // Clear and redraw circle to ensure reference is fresh
-    g.selectAll("circle").remove();
-    g.append("circle")
-      .attr("r", 30)
-      .attr("fill", (d: any) =>
-        d.image_url ? `url(#pattern-${d.id})` : "#111827",
-      )
-      .attr("stroke", (d: any) =>
-        d.name === "Kevin Bacon" ? "#ef4444" : "#22c55e",
-      )
-      .attr("stroke-width", 2.5)
-      .style("filter", "drop-shadow(0 4px 6px rgba(0,0,0,0.5))");
+    // Clear previous elements
+    g.selectAll("*").remove();
 
-    g.selectAll("text").remove();
-    g.append("text")
-      .text((d: any) => d.name)
-      .attr("text-anchor", "middle")
-      .attr("dy", 55)
-      .attr("fill", "#F3F4F6")
-      .attr("font-size", "12px")
-      .attr("font-weight", "700")
-      .attr("class", "node-label");
+    // Node Container
+    g.each(function (d: any) {
+      const el = d3.select(this);
+
+      if (d.image_url) {
+        // Use foreignObject for the image to get easy circular cropping
+        const fo = el
+          .append("foreignObject")
+          .attr("x", -30)
+          .attr("y", -30)
+          .attr("width", 60)
+          .attr("height", 60);
+
+        fo.append("xhtml:div")
+          .style("width", "60px")
+          .style("height", "60px")
+          .style("border-radius", "50%")
+          .style("background-image", `url(${d.image_url})`)
+          .style("background-size", "cover")
+          .style("background-position", "center")
+          .style(
+            "border",
+            `2.5px solid ${d.name === "Kevin Bacon" ? "#ef4444" : "#22c55e"}`,
+          )
+          .style("box-shadow", "0 4px 10px rgba(0,0,0,0.5)");
+      } else {
+        // Fallback to standard circle
+        el.append("circle")
+          .attr("r", 30)
+          .attr("fill", "#111827")
+          .attr("stroke", d.name === "Kevin Bacon" ? "#ef4444" : "#22c55e")
+          .attr("stroke-width", 2.5);
+      }
+
+      el.append("text")
+        .text(d.name)
+        .attr("text-anchor", "middle")
+        .attr("dy", 45)
+        .attr("fill", "#F3F4F6")
+        .attr("font-size", "12px")
+        .attr("font-weight", "700")
+        .style("text-shadow", "0 2px 4px rgba(0,0,0,0.8)");
+    });
 
     if (nodes.length !== oldNodes.size) {
       simulation.alpha(0.3).restart();
@@ -156,9 +151,3 @@
 >
   <svg bind:this={canvas} class="w-full h-full"></svg>
 </div>
-
-<style>
-  .node-label {
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
-  }
-</style>
