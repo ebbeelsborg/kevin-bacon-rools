@@ -74,34 +74,33 @@
 
       // 3. Set system instruction for graph-building behavior
       await space.setSystemInstruction(`You are a graph-building assistant for the "Kevin Bacon Rools" app.
-
+ 
 The space contains objects with these types:
-- Person: { type: "Person", name: string, created_at: number }
-- Photo: { type: "Photo", file_reference: string, upload_timestamp: number }
-- APPEARED_IN: { type: "APPEARED_IN", personId: string, photoId: string }
-- KNOWS: { type: "KNOWS", personA: string, personB: string, weight: number, created_at: number, updated_at: number }
-
+- Person: { type: "Person", name: string, links: string[], created_at: number }
+- Photo: { type: "Photo", file_reference: string, people: string[], upload_timestamp: number }
+ 
 Rules:
-1. Identification: When asked to identify people in a photo, search the web to find out exactly who they are. Be precise.
-2. Deduplication: For each person identified, check if a Person object with that name already exists. Reuse their ID if they do.
-3. Creation: If they don't exist, create a new Person object.
-4. Associations: Create APPEARED_IN relationships linking each identified person to the photo.
-5. RELATIONSHIP MAPPING (CRITICAL): For EVERY POSSIBLE PAIR of people identified in the photo, create a KNOWS relationship link between them. 
-   - You MUST use the Object IDs (e.g., qC81GS) for "personA" and "personB". NEVER use names in relationship fields.
-   - Example: If you find A (ID: 1) and B (ID: 2), create KNOWS { personA: "1", personB: "2" }.
-   - If a relationship already exists, increment the weight.
-6. Summary: Always respond with a brief list of found names and confirmation of the links created.`);
+1. Identification: Identify people in photos precisely.
+2. Deduplication: Reuse existing Person IDs by name.
+3. Creation: If a person doesn't exist, create a new Person object.
+4. Associations (CRITICAL):
+   - Update the Photo object's "people" array with the Person IDs.
+   - For EACH person identified, update their "links" array to include all OTHER people found in the same photo.
+   - You MUST use object IDs (e.g., qC81GS) in these arrays.
+   - DO NOT create any other object types (no KNOWS, no APPEARED_IN).
+5. Summary: Respond with a brief list of names found.`);
 
       // 4. Use LLM to identify people in the photo
       await space.prompt(
         `Look at this image and identify all the people in it: ${imageUrl}
-
-Search the web to determine who these people are. Then for each person:
-1. Check if a Person with that name already exists in the space.
-2. If not, create a new Person object.
-3. Link each person to this Photo (file_reference: "${imageUrl}").
-4. IMPORTANT: Link EVERY PAIR of people found in this photo with a KNOWS relationship. You MUST use their object IDs for the personA and personB fields.
-
+ 
+1. For each person:
+   - Check if they exist in the space by name.
+   - If not, create a new Person object.
+2. Update this Photo object (file_reference: "${imageUrl}") by adding their IDs to the "people" array.
+3. For every person found in this photo, update their "links" array to include the IDs of all other people also present in this photo.
+4. IMPORTANT: Only use Person and Photo types. NO "KNOWS" or "APPEARED_IN" objects.
+ 
 Return a brief summary.`,
         { ephemeral: false },
       );

@@ -1,11 +1,11 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import * as d3 from "d3";
-  import type { Person, Knows } from "../types";
+  import type { Person } from "../types";
 
   interface Props {
     persons: Person[];
-    connections: Knows[];
+    connections: { id: string; personA: string; personB: string }[];
   }
 
   let { persons, connections }: Props = $props();
@@ -78,11 +78,13 @@
       };
     });
 
-    const links: Link[] = connections.map((c) => ({
-      id: c.id,
-      source: c.personA,
-      target: c.personB,
-    }));
+    const links = connections
+      .filter((c) => oldNodes.has(c.personA) && oldNodes.has(c.personB))
+      .map((c) => ({
+        id: c.id,
+        source: c.personA,
+        target: c.personB,
+      }));
 
     simulation.nodes(nodes);
     const linkForce: any = simulation.force("link");
