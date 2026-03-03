@@ -164,12 +164,16 @@ Return a brief summary.`,
             </p>
           </div>
         {:else}
-          <div class="w-full h-full relative">
-            <!-- Full Page Graph -->
-            <GraphCanvas
-              persons={graphManager.persons.filter((p) => p.name)}
-              connections={graphManager.connections}
-            />
+          <div class="w-full h-full relative p-6">
+            <!-- Graph Area with Border -->
+            <div
+              class="w-full h-full border border-slate-200 rounded-3xl overflow-hidden bg-white shadow-sm relative"
+            >
+              <GraphCanvas
+                persons={graphManager.persons.filter((p) => p.name)}
+                connections={graphManager.connections}
+              />
+            </div>
 
             <!-- Floating Upload Panel -->
             <div class="absolute top-6 right-6 w-80 z-50">
