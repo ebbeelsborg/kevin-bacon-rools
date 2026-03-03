@@ -124,7 +124,7 @@
       .attr("font-size", "11px")
       .attr("font-weight", "600");
 
-    if (nodes.length !== oldNodes.size || links.length > 0) {
+    if (nodes.length !== oldNodes.size) {
       simulation.alpha(0.3).restart();
     }
   });
