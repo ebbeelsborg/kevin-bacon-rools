@@ -141,11 +141,7 @@ Return a brief summary.`,
             alt="Kevin Bacon"
             class="w-9 h-9 rounded-full object-cover shadow-lg shadow-blue-500/20 ring-2 ring-blue-500/40"
           />
-          <h1
-            class="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400"
-          >
-            Kevin Bacon Rools
-          </h1>
+          <h1 class="text-lg font-black text-slate-900">Kevin Bacon Rools</h1>
         </div>
         <div class="flex items-center gap-4">
           <button
