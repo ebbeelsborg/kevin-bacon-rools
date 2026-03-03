@@ -97,7 +97,9 @@
       .join("circle")
       .attr("r", 15)
       .attr("fill", "#111827")
-      .attr("stroke", "#3B82F6")
+      .attr("stroke", (d: any) =>
+        d.name === "Kevin Bacon" ? "#ef4444" : "#22c55e",
+      )
       .attr("stroke-width", 2);
 
     g.selectAll("text")
