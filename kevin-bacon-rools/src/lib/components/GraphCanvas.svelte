@@ -28,11 +28,30 @@
   let simulation: d3.Simulation<Node, Link> | null = null;
   let linkGroup: any;
   let nodeGroup: any;
+  let zoomGroup: any;
+  let zoomBehavior: any;
 
   onMount(() => {
     const svg = d3.select(canvas);
-    linkGroup = svg.append("g");
-    nodeGroup = svg.append("g");
+    zoomGroup = svg.append("g");
+    linkGroup = zoomGroup.append("g");
+    nodeGroup = zoomGroup.append("g");
+
+    zoomBehavior = d3
+      .zoom<SVGSVGElement, unknown>()
+      .scaleExtent([0.2, 4])
+      .on("zoom", (event) => {
+        zoomGroup.attr("transform", event.transform);
+      });
+
+    svg.call(zoomBehavior);
+
+    svg.on("dblclick", () => {
+      svg
+        .transition()
+        .duration(400)
+        .call(zoomBehavior.transform, d3.zoomIdentity);
+    });
 
     simulation = d3
       .forceSimulation<Node>()
@@ -176,7 +195,7 @@
   bind:clientHeight={height}
   class="w-full h-full bg-white relative overflow-hidden"
 >
-  <svg bind:this={canvas} class="w-full h-full"></svg>
+  <svg bind:this={canvas} class="w-full h-full cursor-grab active:cursor-grabbing"></svg>
   {#if persons.length === 0}
     <div
       class="absolute inset-0 flex items-center justify-center pointer-events-none"
