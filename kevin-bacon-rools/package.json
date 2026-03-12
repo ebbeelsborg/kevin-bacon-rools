@@ -10,13 +10,13 @@
     "typecheck": "tsc --noEmit && svelte-check --tsconfig ./tsconfig.json"
   },
   "dependencies": {
-    "@rool-dev/sdk": "^0.2.0",
-    "@rool-dev/svelte": "^0.2.0",
+    "@rool-dev/sdk": "^0.3.0",
+    "@rool-dev/svelte": "^0.3.0",
     "@types/d3": "^7.4.3",
     "d3": "^7.9.0"
   },
   "devDependencies": {
-    "@rool-dev/cli": "^0.2.0",
+    "@rool-dev/cli": "^0.3.0",
     "@sveltejs/vite-plugin-svelte": "^5.0.0",
     "@tailwindcss/vite": "^4.0.0",
     "svelte": "^5.0.0",

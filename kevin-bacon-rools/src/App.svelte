@@ -1,8 +1,8 @@
 <script lang="ts">
   import {
     createRool,
-    type ReactiveSpace,
-    type ReactiveCollection,
+    type ReactiveChannel,
+    type ReactiveWatch,
   } from "@rool-dev/svelte";
   import Splash from "./Splash.svelte";
   import UploadPanel from "./lib/components/UploadPanel.svelte";
@@ -11,33 +11,38 @@
   import type { RoolObject } from "./lib/types";
 
   const APP_NAME = "Kevin Bacon Rools";
+  const SPACE_ID = "EBYTmQ";
+  const CHANNEL_ID = "main";
 
   const rool = createRool();
   rool.init();
 
-  let space = $state<ReactiveSpace | null>(null);
-  let collection = $state<ReactiveCollection | null>(null);
+  let channel = $state<ReactiveChannel | null>(null);
+  let collection = $state<ReactiveWatch | null>(null);
   let objects = $derived((collection?.objects as RoolObject[]) ?? []);
 
   let graphManager = $derived(new GraphManager(objects));
 
   let isProcessing = $state(false);
   let uploadError = $state("");
+  let opening = $state(false);
 
   $effect(() => {
-    if (rool.authenticated && rool.spaces && !space) {
-      openSpace();
+    if (rool.authenticated && !channel && !opening) {
+      opening = true;
+      openChannel().catch((e) => {
+        console.error("Failed to open channel:", e);
+        opening = false;
+      });
     }
   });
 
-  const SPACE_ID = "EBYTmQ";
+  async function openChannel() {
+    channel = await rool.openChannel(SPACE_ID, CHANNEL_ID);
+    collection = channel.watch({});
 
-  async function openSpace() {
-    space = await rool.openSpace(SPACE_ID, { conversationId: "main" });
-    collection = space.collection({});
-
-    // Ensure it's shared with editor access for everyone
     try {
+      const space = await rool.openSpace(SPACE_ID);
       if (space.role === "owner" || space.role === "admin") {
         await space.setLinkAccess("editor");
       }
@@ -49,7 +54,7 @@
   const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/jpg"];
 
   async function handleUpload(file: File) {
-    if (!space) return;
+    if (!channel) return;
 
     if (!ALLOWED_TYPES.includes(file.type)) {
       uploadError = `Only PNG and JPG files are supported. You dropped a ${file.type || "unknown"} file.`;
@@ -60,11 +65,9 @@
     isProcessing = true;
 
     try {
-      // 1. Upload image as media to the space
-      const imageUrl = await space.uploadMedia(file);
+      const imageUrl = await channel.uploadMedia(file);
 
-      // 2. Create Photo node
-      await space.createObject({
+      await channel.createObject({
         data: {
           type: "Photo",
           file_reference: imageUrl,
@@ -72,8 +75,7 @@
         },
       });
 
-      // 3. Set system instruction for graph-building behavior
-      await space.setSystemInstruction(`You are a graph-building assistant for the "Kevin Bacon Rools" app.
+      await channel.setSystemInstruction(`You are a graph-building assistant for the "Kevin Bacon Rools" app.
 
 The space contains objects with these types:
 - Person: { type: "Person", name: string, links: string[], created_at: number }
@@ -91,8 +93,7 @@ CRITICAL RULES — follow exactly:
 7. DO NOT create any object type other than Person or Photo.
 8. Summary: brief list of names found.`);
 
-      // 4. Use LLM to identify people in the photo
-      await space.prompt(
+      await channel.prompt(
         `Analyze this photo and identify the people who are PHYSICALLY VISIBLE in it: ${imageUrl}
 
 STRICT RULES:
@@ -126,7 +127,7 @@ Return a brief list of who you can see in the photo.`,
 <div
   class="min-h-dvh bg-slate-50 text-slate-900 font-sans selection:bg-blue-500/10"
 >
-  {#if rool.authenticated === undefined}
+  {#if rool.authenticated == null}
     <div
       class="fixed inset-0 flex items-center justify-center bg-slate-50 z-50"
     >
@@ -163,7 +164,7 @@ Return a brief list of who you can see in the photo.`,
       </header>
 
       <main class="flex-1 overflow-hidden p-6 flex gap-6">
-        {#if !space}
+        {#if !channel}
           <div class="flex-1 flex flex-col items-center justify-center gap-4">
             <div
               class="w-12 h-12 border-4 border-blue-500/10 border-t-blue-600 rounded-full animate-spin"
